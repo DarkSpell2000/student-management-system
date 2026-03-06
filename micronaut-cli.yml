@@ -1,0 +1,5 @@
+profile: service
+defaultPackage: com.studentmanagement
+---
+testFramework: junit
+sourceLanguage: java
