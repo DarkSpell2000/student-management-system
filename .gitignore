@@ -6,3 +6,185 @@
 *.iml
 out
 gen
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+.history/
+*.vsix
+
+# Visual Studio (Windows)
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio 2017/2019/2022 specific
+.vsconfig
+*.dtbcache.v2
+*.ide
+
+# Compiled class files
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+target/
+build/
+
+# Log files
+*.log
+logs/
+*.trace
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+gradle-app.setting
+gradle-wrapper.properties
+
+# Micronaut
+micronaut-cli.yml
+application-dev.yml
+application-local.yml
+application-test.yml
+secrets.yml
+*.secret.yml
+
+# Environment variables
+.env
+.env.*
+*.env
+
+# Database
+*.h2.db
+*.mv.db
+*.db
+*.sqlite
+*.sqlite3
+*.db.lock
+*.pgdata/
+dump.sql
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+$RECYCLE.BIN/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+.metadata/
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# VS Code (детально)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Local History for Visual Studio Code
+.history/
+
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Windows shortcuts
+*.lnk
+
+# Backup files
+*.bak
+*.orig
+*.old
+*.tmp
+
+# Test reports
+test-output/
+test-reports/
+*.html
+coverage/
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# Secrets and keys
+*.pem
+*.key
+*.crt
+*.jks
+*.p12
+*.pfx
+
+# Bruno API collections
+# bruno/ (если нужно исключить)
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# NPM / Node (если есть фронтенд)
+node_modules/
+package-lock.json
+yarn.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# НЕ игнорировать примеры конфигураций
+!src/main/resources/application.yml
+!src/main/resources/application-prod.yml
+!application.example.yml
