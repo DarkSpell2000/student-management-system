@@ -22,10 +22,8 @@ public class GroupDto {
     private Long curatorId;
     private String curatorName;
 
-    // Constructors
     public GroupDto() {}
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

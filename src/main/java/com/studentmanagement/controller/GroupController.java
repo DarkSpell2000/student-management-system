@@ -1,7 +1,6 @@
 package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.GroupDto;
-import com.studentmanagement.model.User;
 import com.studentmanagement.service.GroupService;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.*;
@@ -71,6 +70,25 @@ public class GroupController {
                 .orElse(HttpResponse.notFound());
     }
 
+    @Get("/my")
+    @Operation(summary = "Получить группу текущего куратора")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Группа найдена",
+                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
+            @ApiResponse(responseCode = "404", description = "У куратора нет группы"),
+            @ApiResponse(responseCode = "401", description = "Не авторизован")
+    })
+    public HttpResponse<GroupDto> getMyGroup(Authentication authentication) {
+        Object curatorIdObj = authentication.getAttributes().get("curatorGroupId");
+        if (curatorIdObj == null) {
+            return HttpResponse.notFound();
+        }
+        Long groupId = Long.valueOf(curatorIdObj.toString());
+        return groupService.getGroupById(groupId)
+                .map(HttpResponse::ok)
+                .orElse(HttpResponse.notFound());
+    }
+
     @Post
     @Secured({"ROLE_ADMIN"})
     @Operation(summary = "Создать новую группу", description = "Только для администраторов")
@@ -97,14 +115,12 @@ public class GroupController {
             @ApiResponse(responseCode = "200", description = "Группа обновлена",
                     content = @Content(schema = @Schema(implementation = GroupDto.class))),
             @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
             @ApiResponse(responseCode = "403", description = "Требуются права администратора"),
             @ApiResponse(responseCode = "404", description = "Группа не найдена")
     })
     public HttpResponse<GroupDto> updateGroup(@PathVariable Long id, @Body @Valid GroupDto groupDto) {
         try {
-            GroupDto updated = groupService.updateGroup(id, groupDto);
-            return HttpResponse.ok(updated);
+            return HttpResponse.ok(groupService.updateGroup(id, groupDto));
         } catch (IllegalArgumentException e) {
             return HttpResponse.notFound();
         }
@@ -116,7 +132,6 @@ public class GroupController {
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Группа удалена"),
             @ApiResponse(responseCode = "400", description = "В группе есть студенты"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
             @ApiResponse(responseCode = "403", description = "Требуются права администратора"),
             @ApiResponse(responseCode = "404", description = "Группа не найдена")
     })
@@ -129,25 +144,5 @@ public class GroupController {
         } catch (IllegalArgumentException e) {
             return HttpResponse.notFound();
         }
-    }
-
-    @Get("/my")
-    @Operation(summary = "Получить группу текущего куратора")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Группа найдена",
-                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
-            @ApiResponse(responseCode = "404", description = "У куратора нет группы"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public HttpResponse<GroupDto> getMyGroup(Authentication authentication) {
-        User user = (User) authentication.getAttributes().get("user");
-
-        if (user.getGroup() == null) {
-            return HttpResponse.notFound();
-        }
-
-        return groupService.getGroupById(user.getGroup().getId())
-                .map(HttpResponse::ok)
-                .orElse(HttpResponse.notFound());
     }
 }

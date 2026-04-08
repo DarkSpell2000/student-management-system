@@ -1,14 +1,9 @@
 package com.studentmanagement.config;
 
-import com.studentmanagement.model.User;
 import com.studentmanagement.repository.UserRepository;
-import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.security.authentication.*;
-import io.micronaut.security.oauth2.endpoint.token.response.OauthUserDetailsMapper;
-import io.micronaut.security.oauth2.endpoint.token.response.TokenResponse;
-import io.micronaut.security.rules.SecurityRule;
 import jakarta.inject.Singleton;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -20,7 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Singleton
-public class SecurityConfig implements AuthenticationProvider {
+public class SecurityConfig implements AuthenticationProvider<HttpRequest<?>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(SecurityConfig.class);
 
@@ -31,8 +26,10 @@ public class SecurityConfig implements AuthenticationProvider {
     }
 
     @Override
-    public Publisher<AuthenticationResponse> authenticate(@Nullable HttpRequest<?> httpRequest,
-                                                          AuthenticationRequest<?, ?> authenticationRequest) {
+    public Publisher<AuthenticationResponse> authenticate(
+            @Nullable HttpRequest<?> httpRequest,
+            AuthenticationRequest<?, ?> authenticationRequest) {
+
         String username = authenticationRequest.getIdentity().toString();
         String password = authenticationRequest.getSecret().toString();
 
@@ -41,24 +38,23 @@ public class SecurityConfig implements AuthenticationProvider {
         return Flux.create(emitter -> {
             userRepository.findByUsername(username).ifPresentOrElse(
                     user -> {
-                        if (user.getPassword().equals(password)) { // В реальном проекте используйте BCrypt
+                        // NOTE: In production, use BCrypt: BCrypt.checkpw(password, user.getPassword())
+                        if (user.getPassword().equals(password)) {
                             Map<String, Object> attributes = new HashMap<>();
-                            attributes.put("user", user);
                             attributes.put("userId", user.getId());
                             attributes.put("fullName", user.getFullName());
                             attributes.put("email", user.getEmail());
 
-                            UserDetails userDetails = new UserDetails(username, user.getRoles(), attributes);
-                            emitter.next(userDetails);
+                            emitter.next(AuthenticationResponse.success(username, user.getRoles(), attributes));
                             emitter.complete();
-                            LOG.info("User authenticated successfully: {}", username);
+                            LOG.info("User authenticated: {}", username);
                         } else {
-                            emitter.error(new AuthenticationException(new AuthenticationFailed("Invalid credentials")));
+                            emitter.error(AuthenticationResponse.exception("Invalid credentials"));
                             LOG.warn("Invalid password for user: {}", username);
                         }
                     },
                     () -> {
-                        emitter.error(new AuthenticationException(new AuthenticationFailed("User not found")));
+                        emitter.error(AuthenticationResponse.exception("User not found"));
                         LOG.warn("User not found: {}", username);
                     }
             );

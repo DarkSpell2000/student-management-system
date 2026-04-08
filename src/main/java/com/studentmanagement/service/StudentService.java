@@ -7,12 +7,12 @@ import com.studentmanagement.model.User;
 import com.studentmanagement.repository.GroupRepository;
 import com.studentmanagement.repository.StudentRepository;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Singleton
 public class StudentService {
@@ -28,17 +28,9 @@ public class StudentService {
     }
 
     public List<StudentDto> getAllStudents() {
-        return studentRepository.findAll()
-                .stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-    }
-
-    public List<StudentDto> getStudentsByGroup(Long groupId) {
-        return studentRepository.findByGroupId(groupId)
-                .stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        List<StudentDto> result = new ArrayList<>();
+        studentRepository.findAll().forEach(s -> result.add(toDto(s)));
+        return result;
     }
 
     public List<StudentDto> getStudentsByCurator(User curator) {
@@ -48,78 +40,82 @@ public class StudentService {
         return getStudentsByGroup(curator.getGroup().getId());
     }
 
-    public Optional<StudentDto> getStudentById(Long id) {
-        return studentRepository.findById(id)
-                .map(this::convertToDto);
+    public List<StudentDto> getStudentsByGroup(Long groupId) {
+        List<StudentDto> result = new ArrayList<>();
+        studentRepository.findByGroupId(groupId).forEach(s -> result.add(toDto(s)));
+        return result;
     }
 
-    @Transactional
-    public StudentDto createStudent(StudentDto studentDto, User curator) {
-        LOG.info("Creating new student: {} {}", studentDto.getFirstName(), studentDto.getLastName());
+    public Optional<StudentDto> getStudentById(Long id) {
+        return studentRepository.findById(id).map(this::toDto);
+    }
 
-        if (studentRepository.existsByRecordBookNumber(studentDto.getRecordBookNumber())) {
+    public StudentDto createStudent(StudentDto dto, User currentUser) {
+        // Curators can only add students to their own group
+        if (!currentUser.getRoles().contains("ROLE_ADMIN")) {
+            if (currentUser.getGroup() == null) {
+                throw new SecurityException("У вас нет прикреплённой группы");
+            }
+            if (!currentUser.getGroup().getId().equals(dto.getGroupId())) {
+                throw new SecurityException("Вы можете добавлять студентов только в свою группу");
+            }
+        }
+
+        if (studentRepository.existsByRecordBookNumber(dto.getRecordBookNumber())) {
             throw new IllegalArgumentException("Студент с таким номером зачётной книжки уже существует");
         }
 
-        Student student = convertToEntity(studentDto);
+        Student student = toEntity(dto);
+        Student saved = studentRepository.save(student);
+        LOG.info("Student created: {}", saved.getFullName());
+        return toDto(saved);
+    }
 
-        // Assign to group
-        if (studentDto.getGroupId() != null) {
-            Group group = groupRepository.findById(studentDto.getGroupId())
-                    .orElseThrow(() -> new IllegalArgumentException("Группа не найдена"));
+    public StudentDto updateStudent(Long id, StudentDto dto, User currentUser) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Студент не найден: " + id));
 
-            // Check if curator has access to this group
-            if (curator.getGroup() != null && !curator.getGroup().getId().equals(group.getId())) {
-                throw new SecurityException("Куратор может добавлять студентов только в свою группу");
+        // Curators can only modify students in their group
+        if (!currentUser.getRoles().contains("ROLE_ADMIN")) {
+            if (currentUser.getGroup() == null ||
+                    !currentUser.getGroup().getId().equals(student.getGroup().getId())) {
+                throw new SecurityException("Нет прав для редактирования этого студента");
             }
-
-            group.addStudent(student);
         }
 
-        Student savedStudent = studentRepository.save(student);
-        return convertToDto(savedStudent);
+        student.setFirstName(dto.getFirstName());
+        student.setLastName(dto.getLastName());
+        student.setPatronymic(dto.getPatronymic());
+        student.setBirthDate(dto.getBirthDate());
+        student.setPhoneNumber(dto.getPhoneNumber());
+        student.setEmail(dto.getEmail());
+        student.setAddress(dto.getAddress());
+        student.setRecordBookNumber(dto.getRecordBookNumber());
+
+        if (dto.getGroupId() != null) {
+            groupRepository.findById(dto.getGroupId()).ifPresent(student::setGroup);
+        }
+
+        Student updated = studentRepository.update(student);
+        return toDto(updated);
     }
 
-    @Transactional
-    public StudentDto updateStudent(Long id, StudentDto studentDto, User curator) {
-        LOG.info("Updating student with id: {}", id);
-
+    public void deleteStudent(Long id, User currentUser) {
         Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Студент не найден"));
+                .orElseThrow(() -> new IllegalArgumentException("Студент не найден: " + id));
 
-        // Check if curator has access to this student
-        if (curator.getGroup() != null &&
-                (student.getGroup() == null || !curator.getGroup().getId().equals(student.getGroup().getId()))) {
-            throw new SecurityException("Куратор может редактировать только студентов своей группы");
+        if (!currentUser.getRoles().contains("ROLE_ADMIN")) {
+            if (currentUser.getGroup() == null ||
+                    !currentUser.getGroup().getId().equals(student.getGroup().getId())) {
+                throw new SecurityException("Нет прав для удаления этого студента");
+            }
         }
 
-        updateEntityFromDto(student, studentDto);
-
-        Student updatedStudent = studentRepository.update(student);
-        return convertToDto(updatedStudent);
+        studentRepository.deleteById(id);
+        LOG.info("Student deleted: {}", id);
     }
 
-    @Transactional
-    public void deleteStudent(Long id, User curator) {
-        LOG.info("Deleting student with id: {}", id);
-
-        Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Студент не найден"));
-
-        // Check if curator has access to this student
-        if (curator.getGroup() != null &&
-                (student.getGroup() == null || !curator.getGroup().getId().equals(student.getGroup().getId()))) {
-            throw new SecurityException("Куратор может удалять только студентов своей группы");
-        }
-
-        if (student.getGroup() != null) {
-            student.getGroup().decrementStudentCount();
-        }
-
-        studentRepository.delete(student);
-    }
-
-    private StudentDto convertToDto(Student student) {
+    private StudentDto toDto(Student student) {
         StudentDto dto = new StudentDto();
         dto.setId(student.getId());
         dto.setFirstName(student.getFirstName());
@@ -139,7 +135,7 @@ public class StudentService {
         return dto;
     }
 
-    private Student convertToEntity(StudentDto dto) {
+    private Student toEntity(StudentDto dto) {
         Student student = new Student();
         student.setFirstName(dto.getFirstName());
         student.setLastName(dto.getLastName());
@@ -149,17 +145,11 @@ public class StudentService {
         student.setEmail(dto.getEmail());
         student.setAddress(dto.getAddress());
         student.setRecordBookNumber(dto.getRecordBookNumber());
-        return student;
-    }
 
-    private void updateEntityFromDto(Student student, StudentDto dto) {
-        student.setFirstName(dto.getFirstName());
-        student.setLastName(dto.getLastName());
-        student.setPatronymic(dto.getPatronymic());
-        student.setBirthDate(dto.getBirthDate());
-        student.setPhoneNumber(dto.getPhoneNumber());
-        student.setEmail(dto.getEmail());
-        student.setAddress(dto.getAddress());
-        student.setRecordBookNumber(dto.getRecordBookNumber());
+        if (dto.getGroupId() != null) {
+            groupRepository.findById(dto.getGroupId()).ifPresent(student::setGroup);
+        }
+
+        return student;
     }
 }

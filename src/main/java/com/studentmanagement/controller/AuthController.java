@@ -1,4 +1,3 @@
-
 package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.AuthRequest;
@@ -38,7 +37,7 @@ public class AuthController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Успешная аутентификация",
                     content = @Content(schema = @Schema(implementation = AuthResponse.class))),
-            @ApiResponse(responseCode = "401", description = "Неверные учетные данные"),
+            @ApiResponse(responseCode = "401", description = "Неверные учётные данные"),
             @ApiResponse(responseCode = "400", description = "Ошибка валидации")
     })
     public HttpResponse<AuthResponse> login(@Body @Valid AuthRequest request) {

@@ -12,7 +12,6 @@ public class AuthRequest {
     @NotBlank(message = "Пароль обязателен")
     private String password;
 
-    // Constructors
     public AuthRequest() {}
 
     public AuthRequest(String username, String password) {
@@ -20,7 +19,6 @@ public class AuthRequest {
         this.password = password;
     }
 
-    // Getters and Setters
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 

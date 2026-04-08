@@ -6,12 +6,12 @@ import com.studentmanagement.model.User;
 import com.studentmanagement.repository.GroupRepository;
 import com.studentmanagement.repository.UserRepository;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @Singleton
 public class GroupService {
@@ -27,82 +27,71 @@ public class GroupService {
     }
 
     public List<GroupDto> getAllGroups() {
-        return groupRepository.findAll()
-                .stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+        List<GroupDto> result = new ArrayList<>();
+        groupRepository.findAll().forEach(g -> result.add(toDto(g)));
+        return result;
     }
 
     public Optional<GroupDto> getGroupById(Long id) {
-        return groupRepository.findById(id)
-                .map(this::convertToDto);
+        return groupRepository.findById(id).map(this::toDto);
     }
 
     public Optional<GroupDto> getGroupByNumber(String groupNumber) {
-        return groupRepository.findByGroupNumber(groupNumber)
-                .map(this::convertToDto);
+        return groupRepository.findByGroupNumber(groupNumber).map(this::toDto);
     }
 
-    @Transactional
-    public GroupDto createGroup(GroupDto groupDto) {
-        LOG.info("Creating new group: {}", groupDto.getGroupNumber());
-
-        if (groupRepository.existsByGroupNumber(groupDto.getGroupNumber())) {
-            throw new IllegalArgumentException("Группа с таким номером уже существует");
+    public GroupDto createGroup(GroupDto dto) {
+        if (groupRepository.existsByGroupNumber(dto.getGroupNumber())) {
+            throw new IllegalArgumentException("Группа с таким номером уже существует: " + dto.getGroupNumber());
         }
 
         Group group = new Group();
-        group.setGroupNumber(groupDto.getGroupNumber());
-        group.setFaculty(groupDto.getFaculty());
-        group.setCourse(groupDto.getCourse());
-        group.setStudentCount(0);
+        group.setGroupNumber(dto.getGroupNumber());
+        group.setFaculty(dto.getFaculty());
+        group.setCourse(dto.getCourse());
 
-        if (groupDto.getCuratorId() != null) {
-            User curator = userRepository.findById(groupDto.getCuratorId())
-                    .orElseThrow(() -> new IllegalArgumentException("Куратор не найден"));
-            group.setCurator(curator);
+        if (dto.getCuratorId() != null) {
+            userRepository.findById(dto.getCuratorId())
+                    .ifPresent(group::setCurator);
         }
 
-        Group savedGroup = groupRepository.save(group);
-        return convertToDto(savedGroup);
+        Group saved = groupRepository.save(group);
+        LOG.info("Group created: {}", saved.getGroupNumber());
+        return toDto(saved);
     }
 
-    @Transactional
-    public GroupDto updateGroup(Long id, GroupDto groupDto) {
-        LOG.info("Updating group with id: {}", id);
-
+    public GroupDto updateGroup(Long id, GroupDto dto) {
         Group group = groupRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Группа не найдена"));
+                .orElseThrow(() -> new IllegalArgumentException("Группа не найдена: " + id));
 
-        group.setGroupNumber(groupDto.getGroupNumber());
-        group.setFaculty(groupDto.getFaculty());
-        group.setCourse(groupDto.getCourse());
+        group.setGroupNumber(dto.getGroupNumber());
+        group.setFaculty(dto.getFaculty());
+        group.setCourse(dto.getCourse());
 
-        if (groupDto.getCuratorId() != null) {
-            User curator = userRepository.findById(groupDto.getCuratorId())
-                    .orElseThrow(() -> new IllegalArgumentException("Куратор не найден"));
-            group.setCurator(curator);
+        if (dto.getCuratorId() != null) {
+            userRepository.findById(dto.getCuratorId())
+                    .ifPresent(group::setCurator);
+        } else {
+            group.setCurator(null);
         }
 
-        Group updatedGroup = groupRepository.update(group);
-        return convertToDto(updatedGroup);
+        Group updated = groupRepository.update(group);
+        return toDto(updated);
     }
 
-    @Transactional
     public void deleteGroup(Long id) {
-        LOG.info("Deleting group with id: {}", id);
-
         Group group = groupRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Группа не найдена"));
+                .orElseThrow(() -> new IllegalArgumentException("Группа не найдена: " + id));
 
-        if (group.getStudentCount() > 0) {
+        if (group.getStudents() != null && !group.getStudents().isEmpty()) {
             throw new IllegalStateException("Нельзя удалить группу, в которой есть студенты");
         }
 
-        groupRepository.delete(group);
+        groupRepository.deleteById(id);
+        LOG.info("Group deleted: {}", id);
     }
 
-    private GroupDto convertToDto(Group group) {
+    private GroupDto toDto(Group group) {
         GroupDto dto = new GroupDto();
         dto.setId(group.getId());
         dto.setGroupNumber(group.getGroupNumber());

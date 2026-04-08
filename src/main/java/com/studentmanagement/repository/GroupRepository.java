@@ -1,22 +1,18 @@
 package com.studentmanagement.repository;
 
 import com.studentmanagement.model.Group;
+import com.studentmanagement.model.User;
 import io.micronaut.data.annotation.Repository;
-import io.micronaut.data.jpa.repository.JpaRepository;
+import io.micronaut.data.repository.CrudRepository;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface GroupRepository extends JpaRepository<Group, Long> {
+public interface GroupRepository extends CrudRepository<Group, Long> {
 
     Optional<Group> findByGroupNumber(String groupNumber);
 
-    List<Group> findByFaculty(String faculty);
-
-    List<Group> findByCourse(Integer course);
+    Optional<Group> findByCurator(User curator);
 
     boolean existsByGroupNumber(String groupNumber);
-
-    long countByFaculty(String faculty);
 }

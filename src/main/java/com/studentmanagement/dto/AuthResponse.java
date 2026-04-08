@@ -1,7 +1,6 @@
 package com.studentmanagement.dto;
 
 import io.micronaut.serde.annotation.Serdeable;
-
 import java.util.Set;
 
 @Serdeable
@@ -14,7 +13,6 @@ public class AuthResponse {
     private Long userId;
     private String fullName;
 
-    // Constructors
     public AuthResponse() {}
 
     public AuthResponse(String accessToken, String username, Set<String> roles, Long userId, String fullName) {
@@ -25,7 +23,6 @@ public class AuthResponse {
         this.fullName = fullName;
     }
 
-    // Getters and Setters
     public String getAccessToken() { return accessToken; }
     public void setAccessToken(String accessToken) { this.accessToken = accessToken; }
 

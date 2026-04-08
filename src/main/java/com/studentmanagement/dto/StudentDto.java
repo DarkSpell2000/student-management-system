@@ -1,11 +1,7 @@
 package com.studentmanagement.dto;
 
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.Pattern;
-
+import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
 @Serdeable
@@ -38,10 +34,8 @@ public class StudentDto {
     private Long groupId;
     private String groupNumber;
 
-    // Constructors
     public StudentDto() {}
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
