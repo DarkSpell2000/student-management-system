@@ -1,49 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <groupId>com.studentmanagement</groupId>
     <artifactId>student-management-system</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-    
+
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <micronaut.version>3.10.5</micronaut.version>
+        <micronaut.version>4.4.0</micronaut.version>
     </properties>
-    
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo.maven.apache.org/maven2</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-    
+
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.micronaut</groupId>
-                <artifactId>micronaut-bom</artifactId>
+                <groupId>io.micronaut.platform</groupId>
+                <artifactId>micronaut-platform</artifactId>
                 <version>${micronaut.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
+
     <dependencies>
-        <!-- Micronaut Core -->
         <dependency>
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-inject</artifactId>
@@ -60,12 +46,10 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>io.micronaut</groupId>
-            <artifactId>micronaut-runtime</artifactId>
-            <scope>compile</scope>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
         </dependency>
-        
-        <!-- Micronaut Data -->
         <dependency>
             <groupId>io.micronaut.data</groupId>
             <artifactId>micronaut-data-hibernate-jpa</artifactId>
@@ -77,26 +61,11 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>io.micronaut.sql</groupId>
-            <artifactId>micronaut-hibernate-jpa</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        
-        <!-- Database -->
-        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.6.0</version>
+            <version>42.7.3</version>
             <scope>runtime</scope>
         </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>2.2.224</version>
-            <scope>test</scope>
-        </dependency>
-        
-        <!-- Security -->
         <dependency>
             <groupId>io.micronaut.security</groupId>
             <artifactId>micronaut-security-jwt</artifactId>
@@ -107,56 +76,64 @@
             <artifactId>micronaut-security-annotations</artifactId>
             <scope>compile</scope>
         </dependency>
-        
-        <!-- Validation - ИСПРАВЛЕНО -->
         <dependency>
             <groupId>io.micronaut.validation</groupId>
             <artifactId>micronaut-validation</artifactId>
             <scope>compile</scope>
         </dependency>
-        
-        <!-- OpenAPI / Swagger -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>3.0.2</version>
+        </dependency>
         <dependency>
             <groupId>io.micronaut.openapi</groupId>
-            <artifactId>micronaut-openapi</artifactId>
+            <artifactId>micronaut-openapi-annotations</artifactId>
+            <version>6.8.0</version>
             <scope>compile</scope>
         </dependency>
-        
-        <!-- Serialization -->
         <dependency>
             <groupId>io.micronaut.serde</groupId>
             <artifactId>micronaut-serde-jackson</artifactId>
             <scope>compile</scope>
         </dependency>
-        
-        <!-- Annotation Processors (только здесь, не в основном dependencies) -->
-        
-        <!-- Testing -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <version>3.6.4</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.4.14</version>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>io.micronaut.test</groupId>
             <artifactId>micronaut-test-junit5</artifactId>
+            <version>4.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.9.3</version>
+            <version>5.10.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.9.3</version>
+            <version>5.10.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>5.5.0</version>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
             <plugin>
@@ -168,35 +145,66 @@
                         <path>
                             <groupId>io.micronaut</groupId>
                             <artifactId>micronaut-inject-java</artifactId>
-                            <version>${micronaut.version}</version>
+                            <version>4.4.3</version>
                         </path>
                         <path>
                             <groupId>io.micronaut.data</groupId>
                             <artifactId>micronaut-data-processor</artifactId>
-                            <version>${micronaut.version}</version>
+                            <version>4.7.0</version>
                         </path>
                         <path>
                             <groupId>io.micronaut.validation</groupId>
                             <artifactId>micronaut-validation-processor</artifactId>
-                            <version>${micronaut.version}</version>
+                            <version>4.5.0</version>
                         </path>
                         <path>
                             <groupId>io.micronaut.openapi</groupId>
                             <artifactId>micronaut-openapi</artifactId>
-                            <version>${micronaut.version}</version>
+                            <version>6.8.0</version>
                         </path>
                         <path>
                             <groupId>io.micronaut.serde</groupId>
                             <artifactId>micronaut-serde-processor</artifactId>
-                            <version>${micronaut.version}</version>
+                            <version>2.9.0</version>
+                        </path>
+                        <path>
+                            <groupId>io.micronaut.security</groupId>
+                            <artifactId>micronaut-security-annotations</artifactId>
+                            <version>4.7.0</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>io.micronaut.maven</groupId>
-                <artifactId>micronaut-maven-plugin</artifactId>
-                <version>${micronaut.version}</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.studentmanagement.Application</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

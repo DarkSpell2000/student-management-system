@@ -1,10 +1,8 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.dto.AuthResponse;
-import com.studentmanagement.model.User;
 import com.studentmanagement.repository.UserRepository;
 import io.micronaut.security.token.generator.TokenGenerator;
-import io.micronaut.security.token.claims.ClaimsGenerator;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,28 +24,25 @@ public class UserService {
         this.tokenGenerator = tokenGenerator;
     }
 
+    // ИСПРАВЛЕНИЕ 7: убран неиспользуемый import ClaimsGenerator
     public Optional<AuthResponse> authenticate(String username, String password) {
         return userRepository.findByUsername(username)
                 .filter(user -> user.getPassword().equals(password))
-                .map(user -> {
+                .flatMap(user -> {
                     Map<String, Object> claims = new HashMap<>();
                     claims.put("sub", username);
                     claims.put("roles", user.getRoles());
                     claims.put("userId", user.getId());
                     claims.put("fullName", user.getFullName());
 
-                    Optional<String> token = tokenGenerator.generateToken(claims);
-                    return token.map(t -> new AuthResponse(
-                            t,
-                            username,
-                            user.getRoles(),
-                            user.getId(),
-                            user.getFullName()
-                    )).orElse(null);
+                    return tokenGenerator.generateToken(claims)
+                            .map(token -> new AuthResponse(
+                                    token,
+                                    username,
+                                    user.getRoles(),
+                                    user.getId(),
+                                    user.getFullName()
+                            ));
                 });
-    }
-
-    public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
     }
 }

@@ -38,7 +38,7 @@ datasources:
   default:
     url: jdbc:postgresql://localhost:5432/student_management
     username: postgres
-    password: 1234
+    password: postgres
     driver-class-name: org.postgresql.Driver
     db-type: postgres
     schema-generate: none
