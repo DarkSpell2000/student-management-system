@@ -1,159 +1,93 @@
 package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.StudentDto;
-import com.studentmanagement.model.User;
-import com.studentmanagement.repository.UserRepository;
 import com.studentmanagement.service.StudentService;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.annotation.*;
-import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.authentication.Authentication;
-import io.micronaut.security.rules.SecurityRule;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller("/api/students")
-@Secured(SecurityRule.IS_AUTHENTICATED)
+@RestController
+@RequestMapping("/api/students")
 @Tag(name = "Студенты", description = "Управление данными студентов")
 @SecurityRequirement(name = "Bearer Authentication")
 public class StudentController {
 
     private final StudentService studentService;
-    private final UserRepository userRepository;
 
-    public StudentController(StudentService studentService, UserRepository userRepository) {
+    public StudentController(StudentService studentService) {
         this.studentService = studentService;
-        this.userRepository = userRepository;
     }
 
-    private User resolveUser(Authentication authentication) {
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+    @GetMapping
+    @Operation(summary = "Список студентов",
+        description = "Администратор: все студенты. Куратор: только своя группа")
+    public ResponseEntity<List<StudentDto>> getStudents(Authentication auth) {
+        return ResponseEntity.ok(studentService.getStudentsForUser(auth.getName()));
     }
 
-    @Get
-    @Operation(summary = "Получить всех студентов",
-            description = "Администратор видит всех; куратор — только студентов своей группы")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Список студентов",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = StudentDto.class)))),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public List<StudentDto> getAllStudents(Authentication authentication) {
-        User user = resolveUser(authentication);
-        if (user.getRoles().contains("ROLE_ADMIN")) {
-            return studentService.getAllStudents();
-        }
-        return studentService.getStudentsByCurator(user);
+    @GetMapping("/{id}")
+    @Operation(summary = "Студент по ID (с проверкой прав)")
+    public ResponseEntity<StudentDto> getStudentById(@PathVariable Long id, Authentication auth) {
+        return studentService.getStudentById(id, auth.getName())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @Get("/{id}")
-    @Operation(summary = "Получить студента по ID")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Студент найден",
-                    content = @Content(schema = @Schema(implementation = StudentDto.class))),
-            @ApiResponse(responseCode = "404", description = "Студент не найден"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public HttpResponse<StudentDto> getStudentById(@PathVariable Long id, Authentication authentication) {
-        User user = resolveUser(authentication);
-
-        return studentService.getStudentById(id)
-                .filter(dto -> {
-                    if (user.getRoles().contains("ROLE_ADMIN")) return true;
-                    return user.getGroup() != null &&
-                            dto.getGroupId() != null &&
-                            user.getGroup().getId().equals(dto.getGroupId());
-                })
-                .map(HttpResponse::ok)
-                .orElse(HttpResponse.notFound());
-    }
-
-    @Post
-    @Operation(summary = "Создать нового студента")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Студент создан",
-                    content = @Content(schema = @Schema(implementation = StudentDto.class))),
-            @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
-            @ApiResponse(responseCode = "403", description = "Нет прав")
-    })
-    public HttpResponse<StudentDto> createStudent(@Body @Valid StudentDto studentDto, Authentication authentication) {
-        User user = resolveUser(authentication);
+    @GetMapping("/group/{groupId}")
+    @Operation(summary = "Студенты по группе (куратор — только свою)")
+    public ResponseEntity<?> getStudentsByGroup(@PathVariable Long groupId, Authentication auth) {
         try {
-            return HttpResponse.created(studentService.createStudent(studentDto, user));
+            return ResponseEntity.ok(studentService.getStudentsByGroup(groupId, auth.getName()));
         } catch (SecurityException e) {
-            return HttpResponse.status(HttpStatus.FORBIDDEN);
-        } catch (IllegalArgumentException e) {
-            return HttpResponse.badRequest();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
     }
 
-    @Put("/{id}")
-    @Operation(summary = "Обновить данные студента")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Студент обновлён",
-                    content = @Content(schema = @Schema(implementation = StudentDto.class))),
-            @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
-            @ApiResponse(responseCode = "403", description = "Нет прав"),
-            @ApiResponse(responseCode = "404", description = "Студент не найден")
-    })
-    public HttpResponse<StudentDto> updateStudent(@PathVariable Long id,
-                                                   @Body @Valid StudentDto studentDto,
-                                                   Authentication authentication) {
-        User user = resolveUser(authentication);
+    @PostMapping
+    @Operation(summary = "Добавить студента",
+        description = "Администратор: в любую группу. Куратор: только в свою группу")
+    public ResponseEntity<?> createStudent(@Valid @RequestBody StudentDto dto, Authentication auth) {
         try {
-            return HttpResponse.ok(studentService.updateStudent(id, studentDto, user));
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(studentService.createStudent(dto, auth.getName()));
         } catch (SecurityException e) {
-            return HttpResponse.status(HttpStatus.FORBIDDEN);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (IllegalArgumentException e) {
-            return HttpResponse.notFound();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @Delete("/{id}")
-    @Operation(summary = "Удалить студента")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Студент удалён"),
-            @ApiResponse(responseCode = "403", description = "Нет прав"),
-            @ApiResponse(responseCode = "404", description = "Студент не найден")
-    })
-    public HttpResponse<?> deleteStudent(@PathVariable Long id, Authentication authentication) {
-        User user = resolveUser(authentication);
+    @PutMapping("/{id}")
+    @Operation(summary = "Обновить студента (с проверкой прав)")
+    public ResponseEntity<?> updateStudent(@PathVariable Long id,
+                                           @Valid @RequestBody StudentDto dto,
+                                           Authentication auth) {
         try {
-            studentService.deleteStudent(id, user);
-            return HttpResponse.noContent();
+            return ResponseEntity.ok(studentService.updateStudent(id, dto, auth.getName()));
         } catch (SecurityException e) {
-            return HttpResponse.status(HttpStatus.FORBIDDEN);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (IllegalArgumentException e) {
-            return HttpResponse.notFound();
+            return ResponseEntity.notFound().build();
         }
     }
 
-    @Get("/group/{groupId}")
-    @Operation(summary = "Получить студентов группы")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Список студентов",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = StudentDto.class)))),
-            @ApiResponse(responseCode = "403", description = "Нет прав")
-    })
-    public HttpResponse<List<StudentDto>> getStudentsByGroup(@PathVariable Long groupId,
-                                                              Authentication authentication) {
-        User user = resolveUser(authentication);
-        if (!user.getRoles().contains("ROLE_ADMIN") &&
-                (user.getGroup() == null || !user.getGroup().getId().equals(groupId))) {
-            return HttpResponse.status(HttpStatus.FORBIDDEN);
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Удалить студента (с проверкой прав)")
+    public ResponseEntity<?> deleteStudent(@PathVariable Long id, Authentication auth) {
+        try {
+            studentService.deleteStudent(id, auth.getName());
+            return ResponseEntity.noContent().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
         }
-        return HttpResponse.ok(studentService.getStudentsByGroup(groupId));
     }
 }

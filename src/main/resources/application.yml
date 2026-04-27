@@ -1,57 +1,51 @@
-micronaut:
+spring:
   application:
     name: student-management-system
 
-  server:
-    port: 8080
-
-  security:
-    enabled: true
-    authentication: bearer
-    intercept-url-map:
-      - pattern: /swagger-ui/**
-        access:
-          - isAnonymous()
-      - pattern: /swagger/**
-        access:
-          - isAnonymous()
-    token:
-      jwt:
-        signatures:
-          secret:
-            generator:
-              secret: "pleaseChangeThisSecretForANewOne_mustBe256bits"
-              jws-algorithm: HS256
-        generator:
-          expiration: 3600
-
-  router:
-    static-resources:
-      swagger:
-        paths: classpath:META-INF/swagger
-        mapping: /swagger/**
-      swagger-ui:
-        paths: classpath:META-INF/swagger/views/swagger-ui
-        mapping: /swagger-ui/**
-
-datasources:
-  default:
-    url: jdbc:postgresql://localhost:5432/student_management
-    username: postgres
-    password: 1234
+  datasource:
+    url: ${JDBC_URL:jdbc:postgresql://localhost:5432/student_management}
+    username: ${JDBC_USER:postgres}
+    password: ${JDBC_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
-    db-type: postgres
-    schema-generate: none
-    dialect: POSTGRES
 
-jpa:
-  default:
-    entity-scan:
-      packages: 'com.studentmanagement.model'
+  jpa:
+    hibernate:
+      ddl-auto: update          # create-drop для тестов, update для dev/prod
+    show-sql: false
     properties:
       hibernate:
-        hbm2ddl:
-          auto: update
-        show_sql: false
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false         # отключить OSIV — правильная практика
+
+  security:
+    # Отключаем auto-generated password в консоль
+    user:
+      password: disabled
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# === JWT ===
+app:
+  jwt:
+    secret: ${JWT_SECRET:pleaseChangeThisSecretForANewOneItMustBe256BitsLongForHS256Algorithm}
+    expiration-ms: ${JWT_EXPIRATION:3600000}   # 1 час
+
+# === Swagger / OpenAPI ===
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    try-it-out-enabled: true
+    filter: true
+  api-docs:
+    path: /v3/api-docs
+  paths-to-match: /api/**
+
+logging:
+  level:
+    com.studentmanagement: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN

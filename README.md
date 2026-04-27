@@ -1,12 +1,18 @@
 # Student Management System
 
-REST API на Micronaut 4 + PostgreSQL + JWT + Swagger UI.
+REST API на **Spring Boot 3.2** + **PostgreSQL** + **JWT** + **Swagger UI**.
+
+Почему Spring Boot вместо Micronaut:
+- Единый parent BOM — нет конфликтов версий annotation processors
+- Maven Central + Spring repo доступны из РФ без VPN
+- BCrypt из коробки (Micronaut: plaintext в исходном коде)
+- Значительно больше документации на русском языке
 
 ---
 
 ## Быстрый старт
 
-### Шаг 1 — Запустить PostgreSQL через Docker
+### 1. Запустить PostgreSQL
 
 ```bash
 docker run -d \
@@ -18,49 +24,64 @@ docker run -d \
   postgres:15
 ```
 
-Проверить, что БД работает:
+Проверить:
 ```bash
 docker exec -it student-db psql -U postgres -c "\l"
 ```
 
-### Шаг 2 — Собрать проект
+### 2. Если Maven Central недоступен (РФ) — добавить зеркало в `~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <mirrors>
+    <mirror>
+      <id>yandex</id>
+      <mirrorOf>central</mirrorOf>
+      <url>https://mirror.yandex.ru/mirrors/maven/</url>
+    </mirror>
+  </mirrors>
+</settings>
+```
+
+Или использовать прокси/VPN только для загрузки зависимостей (`mvn dependency:resolve`).
+
+### 3. Собрать
 
 ```bash
-cd student-management
 mvn clean package -DskipTests
 ```
 
-### Шаг 3 — Запустить
+### 4. Запустить
 
 ```bash
-mvn mn:run
+mvn spring-boot:run
 ```
 
-Или с переменными окружения (если БД не на localhost):
-
+С кастомными параметрами БД:
 ```bash
 JDBC_URL=jdbc:postgresql://localhost:5432/student_management \
 JDBC_USER=postgres \
 JDBC_PASSWORD=postgres \
-mvn mn:run
+mvn spring-boot:run
 ```
 
-### Шаг 4 — Открыть Swagger UI
+### 5. Swagger UI
 
-http://localhost:8080/swagger-ui
+http://localhost:8080/swagger-ui.html
 
-В Swagger UI нажать **Authorize**, ввести токен из /api/auth/login.
+Нажать **Authorize** → вставить токен из `/api/auth/login`.
 
 ---
 
 ## Дефолтные пользователи (создаются автоматически)
 
-| Логин    | Пароль     | Роль          |
-|----------|------------|---------------|
-| admin    | admin123   | ROLE_ADMIN    |
-| curator1 | curator123 | ROLE_CURATOR  |
+| Логин     | Пароль      | Роль          |
+|-----------|-------------|---------------|
+| admin     | admin123    | ROLE_ADMIN    |
+| curator1  | curator123  | ROLE_CURATOR  |
 
-Группа **ИТ-21** прикреплена к curator1.
+Группа **ИТ-21** прикреплена к curator1.  
+Пароли хранятся в **BCrypt** (не plaintext).
 
 ---
 
@@ -78,11 +99,11 @@ curl -X POST http://localhost:8080/api/auth/login \
   "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
   "tokenType": "Bearer",
   "username": "admin",
-  "roles": ["ROLE_ADMIN"]
+  "roles": ["ROLE_ADMIN", "ROLE_USER"]
 }
 ```
 
-Использовать токен:
+Использование:
 ```bash
 curl http://localhost:8080/api/groups \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
@@ -90,24 +111,60 @@ curl http://localhost:8080/api/groups \
 
 ---
 
-## Подключение к существующей PostgreSQL (без Docker)
+## API эндпоинты
 
-Создать базу данных вручную:
-```sql
-CREATE DATABASE student_management;
-CREATE USER appuser WITH PASSWORD 'secret';
-GRANT ALL PRIVILEGES ON DATABASE student_management TO appuser;
-```
+### Аутентификация
+| Метод | URL | Доступ | Описание |
+|-------|-----|--------|----------|
+| POST | `/api/auth/login` | Public | Получить JWT |
 
-Запустить с нужными параметрами:
-```bash
-JDBC_URL=jdbc:postgresql://your-host:5432/student_management \
-JDBC_USER=appuser \
-JDBC_PASSWORD=secret \
-mvn mn:run
-```
+### Группы
+| Метод | URL | Доступ | Описание |
+|-------|-----|--------|----------|
+| GET | `/api/groups` | Auth | Все группы |
+| GET | `/api/groups/{id}` | Auth | Группа по ID |
+| GET | `/api/groups/number/{номер}` | Auth | Группа по номеру |
+| POST | `/api/groups` | ADMIN | Создать группу |
+| PUT | `/api/groups/{id}` | ADMIN | Обновить группу |
+| DELETE | `/api/groups/{id}` | ADMIN | Удалить группу (только пустые) |
 
-Таблицы создадутся автоматически (hibernate.hbm2ddl.auto=update).
+### Студенты
+| Метод | URL | Доступ | Описание |
+|-------|-----|--------|----------|
+| GET | `/api/students` | Auth | Все / своя группа |
+| GET | `/api/students/{id}` | Auth | По ID (с проверкой прав) |
+| GET | `/api/students/group/{id}` | Auth | По группе |
+| POST | `/api/students` | Auth | Создать (куратор — только свою группу) |
+| PUT | `/api/students/{id}` | Auth | Обновить (с проверкой прав) |
+| DELETE | `/api/students/{id}` | Auth | Удалить (с проверкой прав) |
+
+---
+
+## Что исправлено по сравнению с Micronaut-версией
+
+| Проблема (Micronaut) | Решение (Spring Boot) |
+|---|---|
+| Конфликт версий: BOM 4.4.0, processors 4.7.0 | Единый spring-boot-starter-parent BOM |
+| Пароли в plaintext | BCryptPasswordEncoder |
+| Отсутствующий SwaggerSecurityRule.java | @SecurityRequirement + permitAll в SecurityConfig |
+| Два дублирующихся application.yml | Один файл в src/main/resources |
+| Нет @Transactional на сервисах | @Transactional на всех сервисах |
+| Repo недоступны из РФ (repo.micronaut.io) | Maven Central + Spring repos |
+| N+1 при getStudentCount() | @Query countStudentsByGroupId |
+| Нет глобального error handler | @RestControllerAdvice |
+
+---
+
+## Переменные окружения
+
+| Переменная | По умолчанию | Описание |
+|---|---|---|
+| `JDBC_URL` | `jdbc:postgresql://localhost:5432/student_management` | URL БД |
+| `JDBC_USER` | `postgres` | Пользователь БД |
+| `JDBC_PASSWORD` | `postgres` | Пароль БД |
+| `JWT_SECRET` | `pleaseChange...` | Секрет для подписи JWT (256+ бит) |
+| `JWT_EXPIRATION` | `3600000` | Время жизни токена в мс (1 час) |
+| `SERVER_PORT` | `8080` | Порт сервера |
 
 ---
 
@@ -115,7 +172,7 @@ mvn mn:run
 
 | Проблема | Решение |
 |---|---|
-| Swagger UI — белая страница | Убедитесь что `mvn package` прошёл без ошибок: annotation processor генерирует UI при компиляции |
-| `Connection refused` к БД | Проверьте `docker ps`, убедитесь что контейнер запущен |
-| `JWT signature does not match` | Не меняйте `JWT_SECRET` между перезапусками — старые токены станут невалидными |
-| 403 на `/swagger-ui` | Проверьте что `SwaggerSecurityRule.java` есть в проекте |
+| `Connection refused` к БД | Проверить `docker ps`, порт 5432 |
+| Maven не скачивает зависимости | Добавить Yandex mirror в settings.xml |
+| Swagger UI — 401 | Нажать Authorize, вставить токен без слова "Bearer" |
+| JWT недействителен после перезапуска | Не меняйте JWT_SECRET между запусками |

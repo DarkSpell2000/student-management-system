@@ -32,17 +32,15 @@ public class Student {
     @Column(name = "address")
     private String address;
 
-    @Column(name = "record_book_number", unique = true, nullable = false)
+    @Column(name = "record_book_number", unique = true, nullable = false, length = 20)
     private String recordBookNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private Group group;
 
-    // Constructors
     public Student() {}
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

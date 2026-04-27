@@ -1,15 +1,11 @@
 package com.studentmanagement.repository;
 
 import com.studentmanagement.model.User;
-import io.micronaut.data.annotation.Repository;
-import io.micronaut.data.repository.CrudRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-@Repository
-public interface UserRepository extends CrudRepository<User, Long> {
-
+public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
-
     boolean existsByUsername(String username);
 }

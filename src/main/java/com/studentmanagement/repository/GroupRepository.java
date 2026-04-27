@@ -2,17 +2,16 @@ package com.studentmanagement.repository;
 
 import com.studentmanagement.model.Group;
 import com.studentmanagement.model.User;
-import io.micronaut.data.annotation.Repository;
-import io.micronaut.data.repository.CrudRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 
-@Repository
-public interface GroupRepository extends CrudRepository<Group, Long> {
-
+public interface GroupRepository extends JpaRepository<Group, Long> {
     Optional<Group> findByGroupNumber(String groupNumber);
-
     Optional<Group> findByCurator(User curator);
-
     boolean existsByGroupNumber(String groupNumber);
+
+    @Query("SELECT COUNT(s) FROM Student s WHERE s.group.id = :groupId")
+    long countStudentsByGroupId(Long groupId);
 }

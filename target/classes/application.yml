@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: student-management-system
+
+  datasource:
+    url: ${JDBC_URL:jdbc:postgresql://localhost:5432/student_management}
+    username: ${JDBC_USER:postgres}
+    password: ${JDBC_PASSWORD:1234}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update          # create-drop для тестов, update для dev/prod
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false         # отключить OSIV — правильная практика
+
+  security:
+    # Отключаем auto-generated password в консоль
+    user:
+      password: disabled
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# === JWT ===
+app:
+  jwt:
+    secret: ${JWT_SECRET:pleaseChangeThisSecretForANewOneItMustBe256BitsLongForHS256Algorithm}
+    expiration-ms: ${JWT_EXPIRATION:3600000}   # 1 час
+
+# === Swagger / OpenAPI ===
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+    try-it-out-enabled: true
+    filter: true
+  api-docs:
+    path: /v3/api-docs
+  paths-to-match: /api/**
+
+logging:
+  level:
+    com.studentmanagement: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN

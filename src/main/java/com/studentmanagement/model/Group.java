@@ -24,11 +24,14 @@ public class Group {
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Student> students = new ArrayList<>();
 
+    /**
+     * Куратор группы — один пользователь с ролью ROLE_CURATOR.
+     * Владеющая сторона OneToOne.
+     */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "curator_id")
     private User curator;
 
-    // Constructors
     public Group() {}
 
     public Group(String groupNumber, String faculty, Integer course) {
@@ -37,7 +40,6 @@ public class Group {
         this.course = course;
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -56,5 +58,7 @@ public class Group {
     public User getCurator() { return curator; }
     public void setCurator(User curator) { this.curator = curator; }
 
-    public int getStudentCount() { return students != null ? students.size() : 0; }
+    public int getStudentCount() {
+        return students != null ? students.size() : 0;
+    }
 }

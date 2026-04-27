@@ -2,25 +2,19 @@ package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.GroupDto;
 import com.studentmanagement.service.GroupService;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.*;
-import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.authentication.Authentication;
-import io.micronaut.security.rules.SecurityRule;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller("/api/groups")
-@Secured(SecurityRule.IS_AUTHENTICATED)
+@RestController
+@RequestMapping("/api/groups")
 @Tag(name = "Группы", description = "Управление студенческими группами")
 @SecurityRequirement(name = "Bearer Authentication")
 public class GroupController {
@@ -31,118 +25,61 @@ public class GroupController {
         this.groupService = groupService;
     }
 
-    @Get
-    @Operation(summary = "Получить все группы")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Список групп",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = GroupDto.class)))),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public List<GroupDto> getAllGroups() {
-        return groupService.getAllGroups();
+    @GetMapping
+    @Operation(summary = "Все группы (admin + curator)")
+    public ResponseEntity<List<GroupDto>> getAllGroups() {
+        return ResponseEntity.ok(groupService.getAllGroups());
     }
 
-    @Get("/{id}")
-    @Operation(summary = "Получить группу по ID")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Группа найдена",
-                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
-            @ApiResponse(responseCode = "404", description = "Группа не найдена"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public HttpResponse<GroupDto> getGroupById(@PathVariable Long id) {
+    @GetMapping("/{id}")
+    @Operation(summary = "Группа по ID")
+    public ResponseEntity<GroupDto> getGroupById(@PathVariable Long id) {
         return groupService.getGroupById(id)
-                .map(HttpResponse::ok)
-                .orElse(HttpResponse.notFound());
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @Get("/number/{groupNumber}")
-    @Operation(summary = "Получить группу по номеру")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Группа найдена",
-                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
-            @ApiResponse(responseCode = "404", description = "Группа не найдена"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public HttpResponse<GroupDto> getGroupByNumber(@PathVariable String groupNumber) {
+    @GetMapping("/number/{groupNumber}")
+    @Operation(summary = "Группа по номеру (например: ИТ-21)")
+    public ResponseEntity<GroupDto> getGroupByNumber(@PathVariable String groupNumber) {
         return groupService.getGroupByNumber(groupNumber)
-                .map(HttpResponse::ok)
-                .orElse(HttpResponse.notFound());
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @Get("/my")
-    @Operation(summary = "Получить группу текущего куратора")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Группа найдена",
-                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
-            @ApiResponse(responseCode = "404", description = "У куратора нет группы"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
-    })
-    public HttpResponse<GroupDto> getMyGroup(Authentication authentication) {
-        Object curatorIdObj = authentication.getAttributes().get("curatorGroupId");
-        if (curatorIdObj == null) {
-            return HttpResponse.notFound();
-        }
-        Long groupId = Long.valueOf(curatorIdObj.toString());
-        return groupService.getGroupById(groupId)
-                .map(HttpResponse::ok)
-                .orElse(HttpResponse.notFound());
-    }
-
-    @Post
-    @Secured({"ROLE_ADMIN"})
-    @Operation(summary = "Создать новую группу", description = "Только для администраторов")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Группа создана",
-                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
-            @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "403", description = "Требуются права администратора")
-    })
-    public HttpResponse<GroupDto> createGroup(@Body @Valid GroupDto groupDto) {
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Создать группу [ADMIN]")
+    public ResponseEntity<?> createGroup(@Valid @RequestBody GroupDto dto) {
         try {
-            GroupDto created = groupService.createGroup(groupDto);
-            return HttpResponse.created(created);
+            return ResponseEntity.status(HttpStatus.CREATED).body(groupService.createGroup(dto));
         } catch (IllegalArgumentException e) {
-            return HttpResponse.badRequest();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @Put("/{id}")
-    @Secured({"ROLE_ADMIN"})
-    @Operation(summary = "Обновить группу", description = "Только для администраторов")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Группа обновлена",
-                    content = @Content(schema = @Schema(implementation = GroupDto.class))),
-            @ApiResponse(responseCode = "400", description = "Ошибка валидации"),
-            @ApiResponse(responseCode = "403", description = "Требуются права администратора"),
-            @ApiResponse(responseCode = "404", description = "Группа не найдена")
-    })
-    public HttpResponse<GroupDto> updateGroup(@PathVariable Long id, @Body @Valid GroupDto groupDto) {
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Обновить группу [ADMIN]")
+    public ResponseEntity<?> updateGroup(@PathVariable Long id, @Valid @RequestBody GroupDto dto) {
         try {
-            return HttpResponse.ok(groupService.updateGroup(id, groupDto));
+            return ResponseEntity.ok(groupService.updateGroup(id, dto));
         } catch (IllegalArgumentException e) {
-            return HttpResponse.notFound();
+            return ResponseEntity.notFound().build();
         }
     }
 
-    @Delete("/{id}")
-    @Secured({"ROLE_ADMIN"})
-    @Operation(summary = "Удалить группу", description = "Только для администраторов")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Группа удалена"),
-            @ApiResponse(responseCode = "400", description = "В группе есть студенты"),
-            @ApiResponse(responseCode = "403", description = "Требуются права администратора"),
-            @ApiResponse(responseCode = "404", description = "Группа не найдена")
-    })
-    public HttpResponse<?> deleteGroup(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Удалить группу [ADMIN] (только пустые)")
+    public ResponseEntity<?> deleteGroup(@PathVariable Long id) {
         try {
             groupService.deleteGroup(id);
-            return HttpResponse.noContent();
+            return ResponseEntity.noContent().build();
         } catch (IllegalStateException e) {
-            return HttpResponse.badRequest(e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (IllegalArgumentException e) {
-            return HttpResponse.notFound();
+            return ResponseEntity.notFound().build();
         }
     }
 }

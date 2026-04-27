@@ -2,21 +2,22 @@ package com.studentmanagement.service;
 
 import com.studentmanagement.dto.GroupDto;
 import com.studentmanagement.model.Group;
-import com.studentmanagement.model.User;
 import com.studentmanagement.repository.GroupRepository;
 import com.studentmanagement.repository.UserRepository;
-import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
-@Singleton
+@Service
+@Transactional   // все методы — транзакционные по умолчанию
 public class GroupService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(GroupService.class);
+    private static final Logger log = LoggerFactory.getLogger(GroupService.class);
 
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
@@ -26,23 +27,28 @@ public class GroupService {
         this.userRepository = userRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<GroupDto> getAllGroups() {
-        List<GroupDto> result = new ArrayList<>();
-        groupRepository.findAll().forEach(g -> result.add(toDto(g)));
-        return result;
+        return groupRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Optional<GroupDto> getGroupById(Long id) {
         return groupRepository.findById(id).map(this::toDto);
     }
 
+    @Transactional(readOnly = true)
     public Optional<GroupDto> getGroupByNumber(String groupNumber) {
         return groupRepository.findByGroupNumber(groupNumber).map(this::toDto);
     }
 
     public GroupDto createGroup(GroupDto dto) {
         if (groupRepository.existsByGroupNumber(dto.getGroupNumber())) {
-            throw new IllegalArgumentException("Группа с таким номером уже существует: " + dto.getGroupNumber());
+            throw new IllegalArgumentException(
+                "Группа с номером '" + dto.getGroupNumber() + "' уже существует");
         }
 
         Group group = new Group();
@@ -56,13 +62,20 @@ public class GroupService {
         }
 
         Group saved = groupRepository.save(group);
-        LOG.info("Group created: {}", saved.getGroupNumber());
+        log.info("Создана группа: {}", saved.getGroupNumber());
         return toDto(saved);
     }
 
     public GroupDto updateGroup(Long id, GroupDto dto) {
         Group group = groupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Группа не найдена: " + id));
+
+        // Проверка уникальности номера (исключая текущую)
+        if (!group.getGroupNumber().equals(dto.getGroupNumber())
+                && groupRepository.existsByGroupNumber(dto.getGroupNumber())) {
+            throw new IllegalArgumentException(
+                "Группа с номером '" + dto.getGroupNumber() + "' уже существует");
+        }
 
         group.setGroupNumber(dto.getGroupNumber());
         group.setFaculty(dto.getFaculty());
@@ -75,20 +88,21 @@ public class GroupService {
             group.setCurator(null);
         }
 
-        Group updated = groupRepository.update(group);
-        return toDto(updated);
+        return toDto(groupRepository.save(group));
     }
 
     public void deleteGroup(Long id) {
         Group group = groupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Группа не найдена: " + id));
 
-        if (group.getStudents() != null && !group.getStudents().isEmpty()) {
-            throw new IllegalStateException("Нельзя удалить группу, в которой есть студенты");
+        long studentCount = groupRepository.countStudentsByGroupId(id);
+        if (studentCount > 0) {
+            throw new IllegalStateException(
+                "Нельзя удалить группу: в ней есть " + studentCount + " студент(ов)");
         }
 
         groupRepository.deleteById(id);
-        LOG.info("Group deleted: {}", id);
+        log.info("Удалена группа id={}", id);
     }
 
     private GroupDto toDto(Group group) {
@@ -103,7 +117,6 @@ public class GroupService {
             dto.setCuratorId(group.getCurator().getId());
             dto.setCuratorName(group.getCurator().getFullName());
         }
-
         return dto;
     }
 }

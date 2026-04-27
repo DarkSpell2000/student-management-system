@@ -1,63 +1,95 @@
 package com.studentmanagement.config;
 
-import com.studentmanagement.repository.UserRepository;
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.security.authentication.*;
-import jakarta.inject.Singleton;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
+import com.studentmanagement.security.JwtAuthenticationFilter;
+import com.studentmanagement.security.JwtTokenProvider;
+import com.studentmanagement.security.UserDetailsServiceImpl;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.util.HashMap;
-import java.util.Map;
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity   // включает @PreAuthorize, @Secured на методах контроллеров
+public class SecurityConfig {
 
-@Singleton
-public class SecurityConfig implements AuthenticationProvider<HttpRequest<?>> {
+    private final JwtTokenProvider tokenProvider;
+    private final UserDetailsServiceImpl userDetailsService;
 
-    private static final Logger LOG = LoggerFactory.getLogger(SecurityConfig.class);
-
-    private final UserRepository userRepository;
-
-    public SecurityConfig(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public SecurityConfig(JwtTokenProvider tokenProvider,
+                          UserDetailsServiceImpl userDetailsService) {
+        this.tokenProvider = tokenProvider;
+        this.userDetailsService = userDetailsService;
     }
 
-    @Override
-    public Publisher<AuthenticationResponse> authenticate(
-            @Nullable HttpRequest<?> httpRequest,
-            AuthenticationRequest<?, ?> authenticationRequest) {
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        // BCrypt — стандарт безопасного хранения паролей
+        return new BCryptPasswordEncoder();
+    }
 
-        String username = authenticationRequest.getIdentity().toString();
-        String password = authenticationRequest.getSecret().toString();
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
+    }
 
-        LOG.debug("Authenticating user: {}", username);
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
 
-        return Flux.create(emitter -> {
-            userRepository.findByUsername(username).ifPresentOrElse(
-                    user -> {
-                        // NOTE: In production, use BCrypt: BCrypt.checkpw(password, user.getPassword())
-                        if (user.getPassword().equals(password)) {
-                            Map<String, Object> attributes = new HashMap<>();
-                            attributes.put("userId", user.getId());
-                            attributes.put("fullName", user.getFullName());
-                            attributes.put("email", user.getEmail());
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
 
-                            emitter.next(AuthenticationResponse.success(username, user.getRoles(), attributes));
-                            emitter.complete();
-                            LOG.info("User authenticated: {}", username);
-                        } else {
-                            emitter.error(AuthenticationResponse.exception("Invalid credentials"));
-                            LOG.warn("Invalid password for user: {}", username);
-                        }
-                    },
-                    () -> {
-                        emitter.error(AuthenticationResponse.exception("User not found"));
-                        LOG.warn("User not found: {}", username);
-                    }
-            );
-        }, FluxSink.OverflowStrategy.ERROR);
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            // REST API — CSRF не нужен (stateless)
+            .csrf(AbstractHttpConfigurer::disable)
+
+            // Stateless — никаких сессий
+            .sessionManagement(sm ->
+                sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            .authorizeHttpRequests(auth -> auth
+                // Публичные маршруты
+                .requestMatchers("/api/auth/**").permitAll()
+                // Swagger UI — доступен без токена
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**",
+                    "/v3/api-docs"
+                ).permitAll()
+                // Actuator health (опционально)
+                .requestMatchers("/actuator/health").permitAll()
+                // Всё остальное — только с токеном
+                .anyRequest().authenticated()
+            )
+
+            .authenticationProvider(authenticationProvider())
+
+            // Наш JWT-фильтр перед стандартным UsernamePassword фильтром
+            .addFilterBefore(jwtAuthenticationFilter(),
+                UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 }

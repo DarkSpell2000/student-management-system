@@ -15,6 +15,10 @@ public class User {
     @Column(unique = true, nullable = false, length = 50)
     private String username;
 
+    /**
+     * Хранится BCrypt-хеш пароля, никогда не plaintext.
+     * Генерируется через PasswordEncoder.encode().
+     */
     @Column(nullable = false)
     private String password;
 
@@ -29,10 +33,13 @@ public class User {
     @Column(name = "role")
     private Set<String> roles = new HashSet<>();
 
+    /**
+     * Группа, куратором которой является этот пользователь.
+     * У одного куратора — одна группа (OneToOne обратная сторона).
+     */
     @OneToOne(mappedBy = "curator", fetch = FetchType.LAZY)
     private Group group;
 
-    // Constructors
     public User() {}
 
     public User(String username, String password, String fullName, String email) {
@@ -42,7 +49,6 @@ public class User {
         this.email = email;
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
