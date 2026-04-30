@@ -25,14 +25,14 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity   // включает @PreAuthorize, @Secured на методах контроллеров
+@EnableMethodSecurity // включает @PreAuthorize, @Secured на методах контроллеров
 public class SecurityConfig {
 
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsServiceImpl userDetailsService;
 
     public SecurityConfig(JwtTokenProvider tokenProvider,
-                          UserDetailsServiceImpl userDetailsService) {
+            UserDetailsServiceImpl userDetailsService) {
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
     }
@@ -65,35 +65,46 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // REST API — CSRF не нужен (stateless)
-            .csrf(AbstractHttpConfigurer::disable)
+                // REST API — CSRF не нужен (stateless)
+                .csrf(AbstractHttpConfigurer::disable)
 
-            // Stateless — никаких сессий
-            .sessionManagement(sm ->
-                sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Stateless — никаких сессий
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            .authorizeHttpRequests(auth -> auth
-                // Публичные маршруты
-                .requestMatchers("/api/auth/**").permitAll()
-                // Swagger UI — доступен без токена
-                .requestMatchers(
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/v3/api-docs/**",
-                    "/v3/api-docs"
-                ).permitAll()
-                // Actuator health (опционально)
-                .requestMatchers("/actuator/health").permitAll()
-                // Всё остальное — только с токеном
-                .anyRequest().authenticated()
-            )
+                .authorizeHttpRequests(auth -> auth
+                        // Публичные маршруты
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // Swagger UI — доступен без токена
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs")
+                        .permitAll()
+                        // Actuator health (опционально)
+                        .requestMatchers("/actuator/health").permitAll()
+                        // Всё остальное — только с токеном
+                        .anyRequest().authenticated())
 
-            .authenticationProvider(authenticationProvider())
+                .authenticationProvider(authenticationProvider())
 
-            // Наш JWT-фильтр перед стандартным UsernamePassword фильтром
-            .addFilterBefore(jwtAuthenticationFilter(),
-                UsernamePasswordAuthenticationFilter.class);
+                // Наш JWT-фильтр перед стандартным UsernamePassword фильтром
+                .addFilterBefore(jwtAuthenticationFilter(),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(false);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }
