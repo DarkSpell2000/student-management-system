@@ -35,6 +35,20 @@ public class Student {
     @Column(name = "record_book_number", unique = true, nullable = false, length = 20)
     private String recordBookNumber;
 
+    /**
+     * Статус студента: ACTIVE, ACADEMIC (академ. отпуск), EXPELLED (отчислен), GRADUATE (выпускник).
+     * По умолчанию ACTIVE.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private StudentStatus status = StudentStatus.ACTIVE;
+
+    /**
+     * Заметка куратора о студенте (произвольный текст).
+     */
+    @Column(name = "note", length = 1000)
+    private String note;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private Group group;
@@ -67,6 +81,12 @@ public class Student {
 
     public String getRecordBookNumber() { return recordBookNumber; }
     public void setRecordBookNumber(String recordBookNumber) { this.recordBookNumber = recordBookNumber; }
+
+    public StudentStatus getStatus() { return status; }
+    public void setStatus(StudentStatus status) { this.status = status; }
+
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
 
     public Group getGroup() { return group; }
     public void setGroup(Group group) { this.group = group; }

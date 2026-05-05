@@ -2,6 +2,7 @@ package com.studentmanagement.service;
 
 import com.studentmanagement.dto.StudentDto;
 import com.studentmanagement.model.Student;
+import com.studentmanagement.model.StudentStatus;
 import com.studentmanagement.model.User;
 import com.studentmanagement.repository.GroupRepository;
 import com.studentmanagement.repository.StudentRepository;
@@ -48,7 +49,6 @@ public class StudentService {
         if (user.getRoles().contains("ROLE_ADMIN")) {
             return getAllStudents();
         }
-        // Куратор: найти его группу через GroupRepository
         return groupRepository.findByCurator(user)
                 .map(group -> studentRepository.findByGroupId(group.getId())
                         .stream().map(this::toDto).collect(Collectors.toList()))
@@ -79,7 +79,6 @@ public class StudentService {
         User user = resolveUser(username);
 
         if (!user.getRoles().contains("ROLE_ADMIN")) {
-            // Куратор: может добавлять только в свою группу
             groupRepository.findByCurator(user)
                 .filter(g -> g.getId().equals(dto.getGroupId()))
                 .orElseThrow(() -> new SecurityException(
@@ -106,7 +105,6 @@ public class StudentService {
             throw new SecurityException("Нет прав для редактирования этого студента");
         }
 
-        // Проверка уникальности зачётки (исключая текущего студента)
         if (studentRepository.existsByRecordBookNumberAndIdNot(dto.getRecordBookNumber(), id)) {
             throw new IllegalArgumentException(
                 "Номер зачётки '" + dto.getRecordBookNumber() + "' уже занят");
@@ -120,6 +118,12 @@ public class StudentService {
         student.setEmail(dto.getEmail());
         student.setAddress(dto.getAddress());
         student.setRecordBookNumber(dto.getRecordBookNumber());
+
+        // Новые поля
+        if (dto.getStatus() != null) {
+            student.setStatus(dto.getStatus());
+        }
+        student.setNote(dto.getNote());
 
         if (dto.getGroupId() != null) {
             groupRepository.findById(dto.getGroupId())
@@ -149,7 +153,11 @@ public class StudentService {
                 .orElseThrow(() -> new IllegalStateException("Пользователь не найден: " + username));
     }
 
-    private boolean canAccessStudent(User user, Student student) {
+    /**
+     * Проверка прав доступа к студенту.
+     * Видим/публичный для тестов, чтобы можно было тестировать напрямую.
+     */
+    boolean canAccessStudent(User user, Student student) {
         if (user.getRoles().contains("ROLE_ADMIN")) return true;
         if (student.getGroup() == null) return false;
         return groupRepository.findByCurator(user)
@@ -168,6 +176,8 @@ public class StudentService {
         dto.setEmail(s.getEmail());
         dto.setAddress(s.getAddress());
         dto.setRecordBookNumber(s.getRecordBookNumber());
+        dto.setStatus(s.getStatus());
+        dto.setNote(s.getNote());
         if (s.getGroup() != null) {
             dto.setGroupId(s.getGroup().getId());
             dto.setGroupNumber(s.getGroup().getGroupNumber());
@@ -185,6 +195,9 @@ public class StudentService {
         s.setEmail(dto.getEmail());
         s.setAddress(dto.getAddress());
         s.setRecordBookNumber(dto.getRecordBookNumber());
+        // Новые поля: дефолт ACTIVE, если статус не передан
+        s.setStatus(dto.getStatus() != null ? dto.getStatus() : StudentStatus.ACTIVE);
+        s.setNote(dto.getNote());
         if (dto.getGroupId() != null) {
             groupRepository.findById(dto.getGroupId()).ifPresent(s::setGroup);
         }

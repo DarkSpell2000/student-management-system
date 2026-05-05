@@ -1,0 +1,3 @@
+com\studentmanagement\service\StudentServiceTest.class
+com\studentmanagement\security\JwtTokenProviderTest.class
+com\studentmanagement\controller\AuthControllerIntegrationTest.class

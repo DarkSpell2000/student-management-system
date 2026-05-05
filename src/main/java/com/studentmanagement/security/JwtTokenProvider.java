@@ -75,6 +75,8 @@ public class JwtTokenProvider {
             log.warn("JWT unsupported: {}", e.getMessage());
         } catch (MalformedJwtException e) {
             log.warn("JWT malformed: {}", e.getMessage());
+        } catch (io.jsonwebtoken.security.SignatureException e) {  // ← ДОБАВИТЬ
+            log.warn("JWT signature mismatch: {}", e.getMessage());
         } catch (SecurityException e) {
             log.warn("JWT signature invalid: {}", e.getMessage());
         } catch (IllegalArgumentException e) {

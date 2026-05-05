@@ -1,5 +1,6 @@
 package com.studentmanagement.dto;
 
+import com.studentmanagement.model.StudentStatus;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
@@ -31,6 +32,13 @@ public class StudentDto {
     @Size(max = 20)
     private String recordBookNumber;
 
+    /** Статус: ACTIVE / ACADEMIC / EXPELLED / GRADUATE. */
+    private StudentStatus status;
+
+    /** Заметка куратора. */
+    @Size(max = 1000, message = "Заметка не должна быть длиннее 1000 символов")
+    private String note;
+
     private Long groupId;
     private String groupNumber;
 
@@ -54,6 +62,10 @@ public class StudentDto {
     public void setAddress(String address) { this.address = address; }
     public String getRecordBookNumber() { return recordBookNumber; }
     public void setRecordBookNumber(String recordBookNumber) { this.recordBookNumber = recordBookNumber; }
+    public StudentStatus getStatus() { return status; }
+    public void setStatus(StudentStatus status) { this.status = status; }
+    public String getNote() { return note; }
+    public void setNote(String note) { this.note = note; }
     public Long getGroupId() { return groupId; }
     public void setGroupId(Long groupId) { this.groupId = groupId; }
     public String getGroupNumber() { return groupNumber; }

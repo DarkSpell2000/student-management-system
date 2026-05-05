@@ -19,7 +19,6 @@ spring:
     open-in-view: false         # отключить OSIV — правильная практика
 
   security:
-    # Отключаем auto-generated password в консоль
     user:
       password: disabled
 

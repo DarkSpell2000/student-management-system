@@ -24,11 +24,6 @@ docker run -d \
   postgres:15
 ```
 
-Проверить:
-```bash
-docker exec -it student-db psql -U postgres -c "\l"
-```
-
 ### 2. Если Maven Central недоступен (РФ) — добавить зеркало в `~/.m2/settings.xml`:
 
 ```xml
@@ -43,29 +38,14 @@ docker exec -it student-db psql -U postgres -c "\l"
 </settings>
 ```
 
-Или использовать прокси/VPN только для загрузки зависимостей (`mvn dependency:resolve`).
-
-### 3. Собрать
+### 3. Собрать и запустить
 
 ```bash
 mvn clean package -DskipTests
-```
-
-### 4. Запустить
-
-```bash
 mvn spring-boot:run
 ```
 
-С кастомными параметрами БД:
-```bash
-JDBC_URL=jdbc:postgresql://localhost:5432/student_management \
-JDBC_USER=postgres \
-JDBC_PASSWORD=postgres \
-mvn spring-boot:run
-```
-
-### 5. Swagger UI
+### 4. Swagger UI
 
 http://localhost:8080/swagger-ui.html
 
@@ -80,34 +60,40 @@ http://localhost:8080/swagger-ui.html
 | admin     | admin123    | ROLE_ADMIN    |
 | curator1  | curator123  | ROLE_CURATOR  |
 
-Группа **ИТ-21** прикреплена к curator1.  
+Группа **ИТ-21** прикреплена к curator1.
 Пароли хранятся в **BCrypt** (не plaintext).
 
 ---
 
-## Получение JWT-токена
+## Запуск тестов
 
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+# Все тесты
+mvn test
+
+# Только юнит-тесты сервиса
+mvn test -Dtest=StudentServiceTest
+
+# Только тесты JWT
+mvn test -Dtest=JwtTokenProviderTest
+
+# Только интеграционный тест login
+mvn test -Dtest=AuthControllerIntegrationTest
+
+# С отчётом покрытия
+mvn test
 ```
 
-Ответ:
-```json
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-  "tokenType": "Bearer",
-  "username": "admin",
-  "roles": ["ROLE_ADMIN", "ROLE_USER"]
-}
-```
+Тесты используют **H2 in-memory БД** — PostgreSQL для тестов запускать не нужно.
+Конфигурация тестов: `src/test/resources/application.yml`.
 
-Использование:
-```bash
-curl http://localhost:8080/api/groups \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
-```
+### Что тестируется
+
+| Класс | Что проверяет |
+|---|---|
+| `StudentServiceTest` | Куратор не может видеть/менять чужих студентов; дублирование зачётки; поля `status` и `note` сохраняются; defaultный статус ACTIVE |
+| `JwtTokenProviderTest` | Генерация токена, извлечение username/ролей, отклонение чужой подписи и истёкших токенов |
+| `AuthControllerIntegrationTest` | HTTP-вход в систему через MockMvc — корректные/неверные учётки, пустое тело |
 
 ---
 
@@ -138,20 +124,14 @@ curl http://localhost:8080/api/groups \
 | PUT | `/api/students/{id}` | Auth | Обновить (с проверкой прав) |
 | DELETE | `/api/students/{id}` | Auth | Удалить (с проверкой прав) |
 
----
-
-## Что исправлено по сравнению с Micronaut-версией
-
-| Проблема (Micronaut) | Решение (Spring Boot) |
-|---|---|
-| Конфликт версий: BOM 4.4.0, processors 4.7.0 | Единый spring-boot-starter-parent BOM |
-| Пароли в plaintext | BCryptPasswordEncoder |
-| Отсутствующий SwaggerSecurityRule.java | @SecurityRequirement + permitAll в SecurityConfig |
-| Два дублирующихся application.yml | Один файл в src/main/resources |
-| Нет @Transactional на сервисах | @Transactional на всех сервисах |
-| Repo недоступны из РФ (repo.micronaut.io) | Maven Central + Spring repos |
-| N+1 при getStudentCount() | @Query countStudentsByGroupId |
-| Нет глобального error handler | @RestControllerAdvice |
+### Поля студента (StudentDto)
+- `firstName`, `lastName`, `patronymic` — ФИО
+- `birthDate` — дата рождения
+- `phoneNumber`, `email`, `address` — контакты
+- `recordBookNumber` — номер зачётки (уникальный)
+- `status` — `ACTIVE` / `ACADEMIC` / `EXPELLED` / `GRADUATE`
+- `note` — заметка куратора (до 1000 символов)
+- `groupId` — ID группы
 
 ---
 
@@ -165,14 +145,3 @@ curl http://localhost:8080/api/groups \
 | `JWT_SECRET` | `pleaseChange...` | Секрет для подписи JWT (256+ бит) |
 | `JWT_EXPIRATION` | `3600000` | Время жизни токена в мс (1 час) |
 | `SERVER_PORT` | `8080` | Порт сервера |
-
----
-
-## Частые проблемы
-
-| Проблема | Решение |
-|---|---|
-| `Connection refused` к БД | Проверить `docker ps`, порт 5432 |
-| Maven не скачивает зависимости | Добавить Yandex mirror в settings.xml |
-| Swagger UI — 401 | Нажать Authorize, вставить токен без слова "Bearer" |
-| JWT недействителен после перезапуска | Не меняйте JWT_SECRET между запусками |
