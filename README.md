@@ -2,12 +2,6 @@
 
 REST API на **Spring Boot 3.2** + **PostgreSQL** + **JWT** + **Swagger UI**.
 
-Почему Spring Boot вместо Micronaut:
-- Единый parent BOM — нет конфликтов версий annotation processors
-- Maven Central + Spring repo доступны из РФ без VPN
-- BCrypt из коробки (Micronaut: plaintext в исходном коде)
-- Значительно больше документации на русском языке
-
 ---
 
 ## Быстрый старт
@@ -55,11 +49,12 @@ http://localhost:8080/swagger-ui.html
 
 ## Дефолтные пользователи (создаются автоматически)
 
-| Логин     | Пароль      | Роль          |
-|-----------|-------------|---------------|
-| admin     | admin123    | ROLE_ADMIN    |
-| curator1  | curator123  | ROLE_CURATOR  |
+| Логин           | Пароль      | Роль          |
+|-----------------|-------------|---------------|
+| admin           | admin123    | ROLE_ADMIN    |
+| curator1(demo)  | curator123  | ROLE_CURATOR  |
 
+DEMO просмотр группы под логином curator1 - без реальной авторизации
 Группа **ИТ-21** прикреплена к curator1.
 Пароли хранятся в **BCrypt** (не plaintext).
 

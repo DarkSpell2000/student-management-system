@@ -1,7 +1,6 @@
 package com.studentmanagement.security;
 
 import com.studentmanagement.model.User;
-import io.jsonwebtoken.security.SignatureException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,14 +80,8 @@ class JwtTokenProviderTest {
         Authentication auth = buildAuth("hacker", List.of("ROLE_ADMIN"));
         String foreignToken = other.generateToken(auth);
 
-        // Наш провайдер должен отклонить чужой токен — либо вернуть false,
-        // либо бросить SignatureException. И то, и другое — корректное поведение.
-        try {
-            boolean valid = tokenProvider.validateToken(foreignToken);
-            assertFalse(valid, "Чужой токен не должен пройти валидацию");
-        } catch (SignatureException e) {
-            // Тоже корректное поведение — подпись не совпала
-        }
+        // Наш провайдер не должен принять чужой токен
+        assertFalse(tokenProvider.validateToken(foreignToken));
     }
 
     @Test

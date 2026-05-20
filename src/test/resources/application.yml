@@ -2,10 +2,10 @@
 # чтобы тесты не зависели от наличия PostgreSQL.
 spring:
   datasource:
-    url: ${JDBC_URL:jdbc:postgresql://localhost:5432/student_management}
-    username: ${JDBC_USER:postgres}
-    password: ${JDBC_PASSWORD:1234}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
 
   jpa:
     hibernate:
